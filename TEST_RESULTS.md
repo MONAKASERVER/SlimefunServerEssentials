@@ -15,6 +15,17 @@ mvn clean verify
 - gzipを含む複数チャンクの復元、SHA-256、最大サイズ拒否、末尾ゼロ埋めなしを検証
 - 出力: `target/MonaSlimefunServerEssentials-26.1.2.jar`
 
+### Paper起動スモークテスト
+
+- Paper 26.1.2 stable build 74 / Java 25でローカルサーバーを起動
+- Slimefun 4.0-UNOFFICIAL（build 2834）とMonaSlimefunServerEssentialsをロード
+- Slimefun本体の555アイテム、1,515レシピを認識
+- Mona JEI同期キャッシュを602〜1,089 msで生成（複数回起動）
+- 最終試験値: 23ネットワークパケット、585,499 raw bytes、66,309 transferred bytes
+- `Done`到達を確認し、初回試験では`stop`で正常終了
+
+初回試験でNBT-API plugin artifactのshade警告を検出したため、配布物は正しい`item-nbt-api` artifactへ修正後に再試験しています。
+
 ### クライアント
 
 ```powershell
@@ -39,15 +50,25 @@ mvn clean verify
 - リソース再読込、OpenGL、OpenAL、各テクスチャアトラスの生成まで例外なく到達
 - 確認後に手動終了
 
+### Paper ↔ Fabric実接続・同期試験
+
+- オフラインモードのローカルPaper 26.1.2 build 74へFabric 26.1.2クライアントを接続
+- サーバーのSlimefun 555アイテム・1,515レシピを対象にprotocol v2同期を開始
+- 9 type + 2 item + 2 category + 10 display = 23パケットをSHA-256検証・gzip展開
+- クライアントログの`Received every expected packet`を確認
+- JEIへ555個のSlimefun ItemStackを追加し、Mona専用カテゴリ・レシピを再登録
+- REI統合も同時に再読込
+- 2回目の接続では永続キャッシュから復元し、全期待データの成立を確認
+- 初回試験でNettyスレッド上のItemStack復元による`Rendersystem called from wrong thread`を検出。復元・キャッシュ適用をMinecraftクライアントスレッドへ移し、再試験で解消
+
 開発ランチャーの未認証ユーザーによるRealms認証警告と、JEIの任意Amecsクラス不在警告は出ましたが、起動停止要因ではありません。
 
 ## 未実施
 
-- Paper 26.1.2 + Slimefun4 +各アドオンのローカル起動
-- FabricクライアントからPaperサーバーへの実接続
+- Supreme / Infinity Expansion / MonaIndustryを追加したPaper起動
 - JEI一覧、R、U、6×6画面の目視操作
 - Mod未導入・Geyser/Floodgateクライアントの接続回帰
-- 再接続・サーバー切替の実ネットワーク試験
+- 異なる2サーバー間を切り替える実ネットワーク試験（同一サーバー再接続は実施済み）
 - 5,000 / 10,000件の処理時間、メモリ、転送時間ベンチマーク
 - 破損パケットを実ネットワーク経由で注入する統合試験
 
@@ -56,5 +77,4 @@ mvn clean verify
 ## 既知の警告
 
 - MavenはローカルSlimefun JARの`systemPath`利用を警告します。運用サーバーと同一APIへ固定する意図的な構成です。
-- Shade時にNBT-APIの`plugin.yml`と重複警告が出ます。完成JAR内では本プラグインの`plugin.yml`を確認します。
 - サーバーのレジストリ読み取り・シリアライズは現在メインスレッドで実行されます。毎tick処理ではなく登録完了時・管理コマンド時だけですが、大規模データでの非同期分離と計測は未完了です。
