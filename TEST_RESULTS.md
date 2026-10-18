@@ -61,11 +61,21 @@ mvn clean verify
 - 2回目の接続では永続キャッシュから復元し、全期待データの成立を確認
 - 初回試験でNettyスレッド上のItemStack復元による`Rendersystem called from wrong thread`を検出。復元・キャッシュ適用をMinecraftクライアントスレッドへ移し、再試験で解消
 
+### アドオン統合試験
+
+- Paper 26.1.2 build 74 / Slimefun build 2834へSupreme 1.21.4、InfinityExpansion 1.21.11-2617、MonaIndustry 3.0.1を追加して起動
+- 分離した試験環境でMonaIndustryを有効化するため、試験専用の最小Vault Economy providerを使用（本番用JAR・MonaIndustryソースは未変更）
+- MonaIndustryの90アイテム、Wireless Energy Networkの16アイテム、6×6レシピ34件の登録を確認
+- Slimefun本体と全アドオンを合わせた1,301アイテムを同期
+- 9 type + 5 item + 8 category + 10 display = 32パケットをクライアントが受信し、`Received every expected packet`を確認
+- JEI runtimeへ1,301個のSlimefun ItemStackを追加
+- `monajei export`で`infinityexpansion.json`、`supreme.json`、`monaindustry.json`および`grid_4x4.json`〜`grid_9x9.json`を生成し、`grid_6x6.json`を含むことを確認
+- 接続中の再エクスポートでキャッシュ済みパケットを二重計上する競合を検出。チャンク単位のSHA-256をクライアントスレッド上で照合するよう修正し、再同期で超過警告が出ないことを確認
+
 開発ランチャーの未認証ユーザーによるRealms認証警告と、JEIの任意Amecsクラス不在警告は出ましたが、起動停止要因ではありません。
 
 ## 未実施
 
-- Supreme / Infinity Expansion / MonaIndustryを追加したPaper起動
 - JEI一覧、R、U、6×6画面の目視操作
 - Mod未導入・Geyser/Floodgateクライアントの接続回帰
 - 異なる2サーバー間を切り替える実ネットワーク試験（同一サーバー再接続は実施済み）
