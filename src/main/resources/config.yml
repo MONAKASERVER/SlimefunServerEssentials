@@ -1,0 +1,16 @@
+sync:
+  enabled: true
+  automatic: true
+  compression: true
+  packets-per-tick: 4
+  max-uncompressed-bytes: 67108864
+
+cache:
+  enabled: true
+
+# Generated once. The client also includes the real connection address in its cache key.
+server-id: ''
+
+export-json-on-load: false
+publish-locked-research: true
+debug: false

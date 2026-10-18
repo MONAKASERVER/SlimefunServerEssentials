@@ -15,11 +15,30 @@ public class LoadingStateChannel extends AbstractChannel {
         }
 
         Player player = event.getPlayer();
+        sync(player);
+    }
+
+    public void sync(Player player) {
+        SlimefunServerEssentials plugin = SlimefunServerEssentials.getInstance();
+        if (!plugin.getConfig().getBoolean("sync.enabled", true) || !plugin.isDataReady()) {
+            if (plugin.getConfig().getBoolean("debug", false)) {
+                plugin.getLogger().info("Skipped Mona JEI sync for " + player.getName()
+                        + " (enabled=" + plugin.getConfig().getBoolean("sync.enabled", true)
+                        + ", ready=" + plugin.isDataReady() + ")");
+            }
+            return;
+        }
         ByteArrayDataOutput loadingStatePacket = ByteStreams.newDataOutput();
-        loadingStatePacket.writeInt(SlimefunServerEssentials.getComponentTypesChannel().messages.size());
-        loadingStatePacket.writeInt(SlimefunServerEssentials.getItemsChannel().messages.size());
-        loadingStatePacket.writeInt(SlimefunServerEssentials.getRecipeCategoriesChannel().messages.size());
-        loadingStatePacket.writeInt(SlimefunServerEssentials.getRecipeDisplaysChannel().messages.size());
+        loadingStatePacket.writeInt(SlimefunServerEssentials.getComponentTypesChannel().packetCount());
+        loadingStatePacket.writeInt(SlimefunServerEssentials.getItemsChannel().packetCount());
+        loadingStatePacket.writeInt(SlimefunServerEssentials.getRecipeCategoriesChannel().packetCount());
+        loadingStatePacket.writeInt(SlimefunServerEssentials.getRecipeDisplaysChannel().packetCount());
+        loadingStatePacket.writeInt(2);
+        loadingStatePacket.writeUTF(SlimefunServerEssentials.getInstance().getConfig().getString("server-id", ""));
+        loadingStatePacket.writeUTF(SlimefunServerEssentials.getComponentTypesChannel().contentHash());
+        loadingStatePacket.writeUTF(SlimefunServerEssentials.getItemsChannel().contentHash());
+        loadingStatePacket.writeUTF(SlimefunServerEssentials.getRecipeCategoriesChannel().contentHash());
+        loadingStatePacket.writeUTF(SlimefunServerEssentials.getRecipeDisplaysChannel().contentHash());
         sendMessage(player, loadingStatePacket);
 
         SlimefunServerEssentials.getComponentTypesChannel().scheduleMessages(player);

@@ -9,6 +9,8 @@ import me.justahuman.slimefun_server_essentials.api.display.ComponentType;
 import me.justahuman.slimefun_server_essentials.implementation.DisplayComponentTypes;
 import me.justahuman.slimefun_server_essentials.implementation.RecipeCategoryExporters;
 import me.justahuman.slimefun_server_essentials.implementation.RecipeDisplays;
+import me.justahuman.slimefun_server_essentials.api.RecipeTypeAdapter;
+import me.justahuman.slimefun_server_essentials.implementation.RecipeTypeAdapters;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 import org.bukkit.inventory.ItemStack;
@@ -27,6 +29,10 @@ public class SlimefunEssentialsRegisterEvent extends Event {
 
     public void registerRecipeDisplay(String id, AbstractDisplayBuilder<?> displayBuilder) {
         RecipeDisplays.register(id, displayBuilder);
+    }
+
+    public void registerRecipeTypeAdapter(RecipeTypeAdapter adapter) {
+        RecipeTypeAdapters.register(adapter);
     }
 
     public void registerItemExporter(SlimefunItemStack slimefunItemStack, BiConsumer<SlimefunItem, RecipeCategoryBuilder> exporter) {

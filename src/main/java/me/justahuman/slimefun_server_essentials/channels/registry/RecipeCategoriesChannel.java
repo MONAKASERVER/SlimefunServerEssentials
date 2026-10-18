@@ -9,6 +9,7 @@ import io.github.thebusybiscuit.slimefun4.api.recipes.RecipeType;
 import me.justahuman.slimefun_server_essentials.api.RecipeCategoryBuilder;
 import me.justahuman.slimefun_server_essentials.channels.AbstractChannel;
 import me.justahuman.slimefun_server_essentials.implementation.RecipeCategoryExporters;
+import me.justahuman.slimefun_server_essentials.implementation.RecipeTypeAdapters;
 import me.justahuman.slimefun_server_essentials.util.DataUtils;
 import me.justahuman.slimefun_server_essentials.util.JsonUtils;
 import me.justahuman.slimefun_server_essentials.util.Utils;
@@ -28,9 +29,10 @@ public class RecipeCategoriesChannel extends AbstractChannel {
         for (Map.Entry<SlimefunAddon, List<SlimefunItem>> registryEntry : Utils.getSortedAddonRegistry().entrySet()) {
             String addonId = format(registryEntry.getKey().getName());
             JsonObject categories = new JsonObject();
-            List<RecipeCategoryBuilder> itemCategories = registryEntry.getValue().stream()
+            List<RecipeCategoryBuilder> itemCategories = new java.util.ArrayList<>(registryEntry.getValue().stream()
                     .map(RecipeCategoryExporters::itemsRecipesCategory)
-                    .filter(Objects::nonNull).toList();
+                    .filter(Objects::nonNull).toList());
+            itemCategories.addAll(RecipeTypeAdapters.export(registryEntry.getKey()));
             RecipeCategoryBuilder.optimize(itemCategories);
 
             ByteArrayDataOutput itemCategoriesPacket = ByteStreams.newDataOutput();

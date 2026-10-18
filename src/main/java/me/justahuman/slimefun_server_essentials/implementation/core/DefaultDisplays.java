@@ -45,6 +45,12 @@ public enum DefaultDisplays {
         return builder;
     }),
     GRID_3X3("grid3", () -> new GridDisplayBuilder(3, 3, 1, 1)),
+    GRID_4X4("grid_4x4", () -> new GridDisplayBuilder(4, 4, 1, 1)),
+    GRID_5X5("grid_5x5", () -> new GridDisplayBuilder(5, 5, 1, 1)),
+    GRID_6X6("grid_6x6", () -> new GridDisplayBuilder(6, 6, 1, 1)),
+    GRID_7X7("grid_7x7", () -> new GridDisplayBuilder(7, 7, 1, 1)),
+    GRID_8X8("grid_8x8", () -> new GridDisplayBuilder(8, 8, 1, 1)),
+    GRID_9X9("grid_9x9", () -> new GridDisplayBuilder(9, 9, 1, 1)),
     REACTOR("reactor", () -> {
         RecipeDisplayBuilder builder = new RecipeDisplayBuilder();
         OffsetBuilder offsets = new OffsetBuilder(

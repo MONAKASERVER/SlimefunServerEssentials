@@ -3,6 +3,7 @@ package me.justahuman.slimefun_server_essentials.channels;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import me.justahuman.slimefun_server_essentials.SlimefunServerEssentials;
+import me.justahuman.slimefun_server_essentials.protocol.TransferEnvelope;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -13,23 +14,24 @@ import org.bukkit.plugin.messaging.PluginMessageListener;
 
 import javax.annotation.Nonnull;
 import javax.annotation.ParametersAreNonnullByDefault;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public abstract class AbstractChannel implements PluginMessageListener, Listener {
-    protected static final int MAX_MESSAGE_SIZE = 32766;
-    protected static final int SPLIT_MESSAGE_SIZE = MAX_MESSAGE_SIZE - 4 - 4 - 4;
-    protected static int messageId = 0;
     protected final List<byte[]> messages = new ArrayList<>();
+    protected final List<String> messageHashes = new ArrayList<>();
+    protected long rawBytes;
+    protected long encodedBytes;
     protected final Set<UUID> players = new HashSet<>();
     protected final Map<UUID, Runnable> onRegisterChannel = new HashMap<>();
+    protected final Set<UUID> skipNextTransfer = new HashSet<>();
 
     protected AbstractChannel() {
         final Plugin plugin = SlimefunServerEssentials.getInstance();
@@ -44,12 +46,30 @@ public abstract class AbstractChannel implements PluginMessageListener, Listener
 
     public abstract String getChannel();
     public void load() {}
+    public void clear() {
+        messages.clear();
+        messageHashes.clear();
+        rawBytes = 0;
+        encodedBytes = 0;
+    }
+
+    public int packetCount() {
+        return messages.size();
+    }
+
+    public long rawBytes() {
+        return rawBytes;
+    }
+
+    public long encodedBytes() {
+        return encodedBytes;
+    }
+
+    public String contentHash() {
+        return messageHashes.stream().collect(Collectors.joining(":"));
+    }
     public void scheduleMessages(@Nonnull Player player) {
-        onRegisterChannel.put(player.getUniqueId(), () -> {
-            for (byte[] message : messages) {
-                sendMessage(player, message);
-            }
-        });
+        onRegisterChannel.put(player.getUniqueId(), () -> startRateLimitedSend(player));
 
         if (players.contains(player.getUniqueId())) {
             onRegisterChannel.remove(player.getUniqueId()).run();
@@ -99,25 +119,51 @@ public abstract class AbstractChannel implements PluginMessageListener, Listener
         UUID playerId = event.getPlayer().getUniqueId();
         players.remove(playerId);
         onRegisterChannel.remove(playerId);
+        skipNextTransfer.remove(playerId);
     }
 
     public List<byte[]> splitMessage(byte[] data) {
-        int pieces = (int) Math.ceil(data.length / (double) SPLIT_MESSAGE_SIZE);
-        byte[] messageIdBytes = ByteBuffer.allocate(4).putInt(messageId++).array();
-        byte[] piecesBytes = ByteBuffer.allocate(4).putInt(pieces).array();
+        SlimefunServerEssentials plugin = SlimefunServerEssentials.getInstance();
+        int maximum = plugin.getConfig().getInt("sync.max-uncompressed-bytes", 67_108_864);
+        boolean gzip = plugin.getConfig().getBoolean("sync.compression", true);
+        TransferEnvelope.EncodedMessage encoded = TransferEnvelope.encode(data, gzip, maximum);
+        rawBytes += encoded.rawBytes();
+        encodedBytes += encoded.encodedBytes();
+        messageHashes.add(encoded.sha256());
+        return encoded.packets();
+    }
 
-        List<byte[]> split = new ArrayList<>();
-        for (int i = 0; i < pieces; i++) {
-            byte[] indexBytes = ByteBuffer.allocate(4).putInt(i).array();
-            byte[] bytes = new byte[MAX_MESSAGE_SIZE];
-            int start = i * SPLIT_MESSAGE_SIZE;
-            int end = Math.min(data.length, (i + 1) * SPLIT_MESSAGE_SIZE);
-            System.arraycopy(messageIdBytes, 0, bytes, 0, 4);
-            System.arraycopy(piecesBytes, 0, bytes, 4, 4);
-            System.arraycopy(indexBytes, 0, bytes, 8, 4);
-            System.arraycopy(data, start, bytes, 12, end - start);
-            split.add(bytes);
+    private void startRateLimitedSend(Player player) {
+        if (skipNextTransfer.remove(player.getUniqueId())) {
+            return;
         }
-        return split;
+        if (messages.isEmpty()) {
+            return;
+        }
+        int packetsPerTick = Math.max(1, SlimefunServerEssentials.getInstance().getConfig()
+                .getInt("sync.packets-per-tick", 4));
+        List<byte[]> snapshot = List.copyOf(messages);
+        final int[] cursor = {0};
+        SlimefunServerEssentials.getInstance().getServer().getScheduler().runTaskTimer(
+                SlimefunServerEssentials.getInstance(), task -> {
+                    if (skipNextTransfer.remove(player.getUniqueId())) {
+                        task.cancel();
+                        return;
+                    }
+                    if (!player.isOnline() || !players.contains(player.getUniqueId())) {
+                        task.cancel();
+                        return;
+                    }
+                    for (int sent = 0; sent < packetsPerTick && cursor[0] < snapshot.size(); sent++) {
+                        sendMessage(player, snapshot.get(cursor[0]++));
+                    }
+                    if (cursor[0] >= snapshot.size()) {
+                        task.cancel();
+                    }
+                }, 1L, 1L);
+    }
+
+    public void skipNext(Player player) {
+        skipNextTransfer.add(player.getUniqueId());
     }
 }

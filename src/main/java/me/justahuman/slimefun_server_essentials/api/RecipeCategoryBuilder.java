@@ -6,6 +6,8 @@ import com.google.gson.JsonObject;
 import lombok.Getter;
 import me.justahuman.slimefun_server_essentials.SlimefunServerEssentials;
 import me.justahuman.slimefun_server_essentials.implementation.core.DefaultDisplays;
+import me.justahuman.slimefun_server_essentials.implementation.RecipeDisplays;
+import me.justahuman.slimefun_server_essentials.api.display.GridDisplayBuilder;
 import me.justahuman.slimefun_server_essentials.util.DataUtils;
 import me.justahuman.slimefun_server_essentials.util.JsonUtils;
 import org.bukkit.inventory.ItemStack;
@@ -44,6 +46,15 @@ public class RecipeCategoryBuilder {
 
     public void display(String display) {
         this.display = display;
+    }
+
+    public void displayGrid(int width, int height) {
+        if (width < 1 || width > 9 || height < 1 || height > 9) {
+            throw new IllegalArgumentException("Recipe grids must be between 1x1 and 9x9");
+        }
+        String id = "grid_" + width + "x" + height;
+        RecipeDisplays.register(id, new GridDisplayBuilder(width, height, 1, 1));
+        this.display = id;
     }
 
     public void copy(String copy) {

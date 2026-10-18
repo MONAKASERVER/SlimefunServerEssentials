@@ -3,6 +3,7 @@ package me.justahuman.slimefun_server_essentials.listeners;
 import me.justahuman.slimefun_server_essentials.api.event.SlimefunEssentialsRegisterEvent;
 import me.justahuman.slimefun_server_essentials.implementation.core.DefaultCategories;
 import me.justahuman.slimefun_server_essentials.implementation.core.DefaultDisplays;
+import me.justahuman.slimefun_server_essentials.implementation.adapter.MonaIndustryExpertRecipeAdapter;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -16,6 +17,7 @@ public class RegisterDefaultsListener implements Listener {
         for (DefaultDisplays display : DefaultDisplays.values()) {
             event.registerRecipeDisplay(display.id(), display.display());
         }
+        event.registerRecipeTypeAdapter(new MonaIndustryExpertRecipeAdapter());
         DefaultCategories.register(event);
     }
 }

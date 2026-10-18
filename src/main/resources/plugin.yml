@@ -1,8 +1,26 @@
-name: SlimefunServerEssentials
+name: MonaSlimefunServerEssentials
 version: '${project.version}'
 main: me.justahuman.slimefun_server_essentials.SlimefunServerEssentials
-api-version: 1.20
-prefix: SFSE
+api-version: '26.1'
+prefix: MonaJEI
 depend: [ Slimefun ]
-authors: [ JustAHuman ]
+authors: [ JustAHuman, MONAKA_SERVER ]
 description: Exports Slimefun Recipes to Json Files & provides support for many features of the Slimefun Essentials Mod
+website: https://github.com/MONAKASERVER/SlimefunServerEssentials
+commands:
+  monajei:
+    description: Mona Slimefun Essentials synchronization administration
+    usage: /monajei <status|reload|sync|syncall|export|debug>
+permissions:
+  monajei.status:
+    default: op
+  monajei.reload:
+    default: op
+  monajei.sync:
+    default: op
+  monajei.syncall:
+    default: op
+  monajei.export:
+    default: op
+  monajei.debug:
+    default: op

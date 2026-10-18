@@ -21,6 +21,10 @@ import org.bukkit.inventory.meta.Damageable;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -29,19 +33,31 @@ import java.util.Optional;
 public class JsonUtils {
     private static final int DATA_VERSION = 1;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+    private static volatile boolean exportEnabled;
+
+    public static void setExportEnabled(boolean enabled) {
+        exportEnabled = enabled;
+    }
 
     public static void deleteGenerated() {
-        File generated = new File(SlimefunServerEssentials.getInstance().getDataFolder(), "generated");
-        try {
-            if (generated.exists()) {
-                generated.delete();
+        Path generated = new File(SlimefunServerEssentials.getInstance().getDataFolder(), "generated").toPath();
+        if (!Files.exists(generated)) {
+            return;
+        }
+        try (var paths = Files.walk(generated)) {
+            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(path);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (IOException exception) {
+            SlimefunServerEssentials.getInstance().getLogger().warning(
+                    "Could not clear generated export directory: " + exception.getMessage());
         }
     }
 
     public static void generated(String path, JsonObject element) {
+        if (!exportEnabled) {
+            return;
+        }
         if (!path.endsWith(".json")) {
             path += ".json";
         }

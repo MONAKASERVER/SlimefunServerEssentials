@@ -12,7 +12,7 @@ import java.util.List;
 
 @UtilityClass
 public class DataUtils {
-    public static final int DATA_VERSION = 1;
+    public static final int DATA_VERSION = 2;
 
     public void writeVersion(ByteArrayDataOutput output) {
         output.writeInt(DATA_VERSION);

@@ -23,6 +23,8 @@ public class RecipeBuilder {
     private Integer sfTicks = null;
     private Integer ticks = null;
     private Integer energy = null;
+    private Integer width = null;
+    private Integer height = null;
     private final List<ItemStack> complex = new ArrayList<>();
     private final List<String> inputs = new ArrayList<>();
     private final List<String> outputs = new ArrayList<>();
@@ -40,6 +42,15 @@ public class RecipeBuilder {
 
     public RecipeBuilder energy(Integer energy) {
         this.energy = energy;
+        return this;
+    }
+
+    public RecipeBuilder grid(int width, int height) {
+        if (width < 1 || width > 9 || height < 1 || height > 9) {
+            throw new IllegalArgumentException("Recipe grids must be between 1x1 and 9x9");
+        }
+        this.width = width;
+        this.height = height;
         return this;
     }
     
@@ -204,6 +215,8 @@ public class RecipeBuilder {
         DataUtils.addPositive(output, this.sfTicks);
         DataUtils.addPositive(output, this.ticks);
         DataUtils.add(output, this.energy, 0);
+        DataUtils.addPositive(output, this.width);
+        DataUtils.addPositive(output, this.height);
 
         output.writeInt(this.complex.size());
         for (ItemStack item : this.complex) {
@@ -227,6 +240,10 @@ public class RecipeBuilder {
 
         if (this.energy != null && this.energy != 0) {
             recipe.addProperty("energy", this.energy);
+        }
+        if (this.width != null && this.height != null) {
+            recipe.addProperty("width", this.width);
+            recipe.addProperty("height", this.height);
         }
 
         JsonArray complexArray = new JsonArray();
@@ -252,6 +269,8 @@ public class RecipeBuilder {
         return Objects.equals(this.sfTicks, other.sfTicks)
                 && Objects.equals(this.ticks, other.ticks)
                 && Objects.equals(this.energy, other.energy)
+                && Objects.equals(this.width, other.width)
+                && Objects.equals(this.height, other.height)
                 && Objects.equals(this.complex, other.complex)
                 && Objects.equals(this.inputs, other.inputs)
                 && Objects.equals(this.outputs, other.outputs)
@@ -273,6 +292,8 @@ public class RecipeBuilder {
         spedRecipe.sfTicks = this.sfTicks == null ? null : this.sfTicks / speed;
         spedRecipe.ticks = this.ticks == null ? null : this.ticks / speed;
         spedRecipe.energy = this.energy == null ? null : this.energy;
+        spedRecipe.width = this.width;
+        spedRecipe.height = this.height;
         spedRecipe.complex.addAll(this.complex);
         spedRecipe.inputs.addAll(this.inputs);
         spedRecipe.outputs.addAll(this.outputs);
