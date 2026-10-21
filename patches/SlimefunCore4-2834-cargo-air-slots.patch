@@ -1,0 +1,27 @@
+Subject: [MONA] Treat explicit AIR cargo slots as empty
+
+Paper 26.1.2 can expose an explicit AIR ItemStack for an empty inventory slot.
+Slimefun's CargoUtils only checked for null before calling isItemSimilar.
+That path eventually called CustomItemDataService#getItemData with AIR's null
+ItemMeta and aborted the whole Cargo network tick.
+
+Apply these two guards to the MONA SlimefunCore4-2834 source before building.
+The same check is required for DirtyChestMenu and vanilla Inventory targets.
+
+--- a/src/main/java/io/github/thebusybiscuit/slimefun4/core/networks/cargo/CargoUtils.java
++++ b/src/main/java/io/github/thebusybiscuit/slimefun4/core/networks/cargo/CargoUtils.java
+@@ -279,4 +279,7 @@ final class CargoUtils {
+-            if (itemInSlot == null) {
++            // Paper can expose an explicit AIR stack for an otherwise empty slot.
++            // Treat it exactly like null before Slimefun's metadata comparison;
++            // AIR has no ItemMeta and would otherwise make getByItem throw.
++            if (itemInSlot == null || itemInSlot.getType().isAir() || itemInSlot.getAmount() <= 0) {
+                 menu.replaceExistingItem(slot, stack);
+                 return null;
+             }
+@@ -333,4 +336,4 @@ final class CargoUtils {
+-            if (itemInSlot == null) {
++            if (itemInSlot == null || itemInSlot.getType().isAir() || itemInSlot.getAmount() <= 0) {
+                 inv.setItem(slot, stack);
+                 return null;
+             } else {
