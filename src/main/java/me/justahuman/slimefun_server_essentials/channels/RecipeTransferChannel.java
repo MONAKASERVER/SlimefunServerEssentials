@@ -12,6 +12,7 @@ import me.justahuman.slimefun_server_essentials.SlimefunServerEssentials;
 import me.justahuman.slimefun_server_essentials.api.RecipeBuilder;
 import me.justahuman.slimefun_server_essentials.implementation.RecipeTransferRegistry;
 import me.mrCookieSlime.Slimefun.api.BlockStorage;
+import me.mrCookieSlime.Slimefun.api.inventory.BlockMenu;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -66,7 +67,7 @@ public final class RecipeTransferChannel extends AbstractChannel {
 
     private void transfer(Player player, String categoryId, int recipeIndex, boolean maxTransfer) {
         Inventory top = player.getOpenInventory().getTopInventory();
-        TransferTarget target = resolveTarget(top);
+        TransferTarget target = resolveTarget(player, top);
         if (target == null) {
             player.sendMessage("§c自動配置にはドロッパー、ディスペンサー、またはNetworks Crafting Gridを開いてください。");
             return;
@@ -212,7 +213,7 @@ public final class RecipeTransferChannel extends AbstractChannel {
         return contents.toArray(ItemStack[]::new);
     }
 
-    private TransferTarget resolveTarget(Inventory top) {
+    private TransferTarget resolveTarget(Player player, Inventory top) {
         InventoryType type = top.getType();
         if ((type == InventoryType.DISPENSER || type == InventoryType.DROPPER) && top.getSize() == 9) {
             return new TransferTarget(STANDARD_GRID_SLOTS, null, false);
@@ -220,14 +221,40 @@ public final class RecipeTransferChannel extends AbstractChannel {
         if (top.getSize() != 54) {
             return null;
         }
-        Location location = top.getLocation();
-        if (location == null || !NETWORK_CRAFTING_GRID_ID.equals(BlockStorage.checkID(location))) {
+        Location location = resolveNetworkCraftingGridLocation(player, top);
+        if (location == null) {
             return null;
         }
         NodeDefinition definition = NetworkStorage.getAllNetworkObjects().get(location);
         NetworkRoot root = definition == null || definition.getNode() == null
                 ? null : definition.getNode().getRoot();
         return new TransferTarget(NETWORK_CRAFTING_GRID_SLOTS, root, true);
+    }
+
+    private Location resolveNetworkCraftingGridLocation(Player player, Inventory top) {
+        Location directLocation = top.getLocation();
+        if (directLocation != null && NETWORK_CRAFTING_GRID_ID.equals(BlockStorage.checkID(directLocation))) {
+            return directLocation;
+        }
+
+        // Slimefun's BlockMenu opens a virtual Bukkit inventory whose location is null.
+        // Match that live inventory back to its placed Networks node instead of trusting
+        // a title or a client-supplied location.
+        for (Location candidate : NetworkStorage.getAllNetworkObjects().keySet()) {
+            if (!NETWORK_CRAFTING_GRID_ID.equals(BlockStorage.checkID(candidate))) {
+                continue;
+            }
+            BlockMenu menu = BlockStorage.getInventory(candidate);
+            if (menu == null || !menu.hasViewer()) {
+                continue;
+            }
+            Inventory menuInventory = menu.toInventory();
+            if (menuInventory == top || menuInventory.equals(top)
+                    || menuInventory.getViewers().contains(player)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     private int maximumSets(ItemStack[] inventory, List<List<ItemStack>> requirements) {
