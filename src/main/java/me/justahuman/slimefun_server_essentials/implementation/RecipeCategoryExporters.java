@@ -38,6 +38,20 @@ public class RecipeCategoryExporters {
         BiConsumer<SlimefunItem, RecipeCategoryBuilder> exporter = TYPE_EXPORTERS.get(slimefunItem.getRecipeType());
         if (exporter != null) {
             exporter.accept(slimefunItem, builder);
+        } else if (slimefunItem.getRecipeType() != RecipeType.NULL) {
+            ItemStack[] recipe = slimefunItem.getRecipe();
+            if (recipe != null && recipe.length > 0) {
+                builder.recipe(new me.justahuman.slimefun_server_essentials.api.RecipeBuilder()
+                        .inputs(recipe)
+                        .output(slimefunItem.getRecipeOutput()));
+                int side = (int) Math.sqrt(recipe.length);
+                if (side >= 3 && side * side == recipe.length) {
+                    builder.displayGrid(side, side);
+                } else {
+                    builder.displayGrid(3, 3);
+                }
+                builder.item(slimefunItem.getRecipeType().toItem());
+            }
         }
     }
 

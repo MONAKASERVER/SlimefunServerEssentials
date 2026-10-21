@@ -13,3 +13,8 @@
 - 日本語UI翻訳を追加
 - JSON出力を通常起動時は無効化し、明示的なexportに分離
 - 元のMITライセンス、履歴、旧分割通信の受信互換を保持
+# 26.1.2-1.1.0
+
+- Added secure JEI recipe auto-placement for open droppers and dispensers, including Slimefun multiblock input dispensers.
+- Added generic export support for custom addon recipe types, including SlimeTinker, FluffyMachines and DankTech2.
+- Merged shared recipe categories across addons so recipes are no longer overwritten by the last loaded addon.

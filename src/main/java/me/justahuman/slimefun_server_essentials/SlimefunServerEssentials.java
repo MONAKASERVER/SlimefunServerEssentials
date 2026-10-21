@@ -8,12 +8,14 @@ import me.justahuman.slimefun_server_essentials.channels.registry.RecipeCategori
 import me.justahuman.slimefun_server_essentials.channels.registry.RecipeDisplaysChannel;
 import me.justahuman.slimefun_server_essentials.channels.registry.ComponentTypesChannel;
 import me.justahuman.slimefun_server_essentials.channels.CacheStatusChannel;
+import me.justahuman.slimefun_server_essentials.channels.RecipeTransferChannel;
 import me.justahuman.slimefun_server_essentials.command.MonaJeiCommand;
 import me.justahuman.slimefun_server_essentials.api.event.SlimefunEssentialsRegisterEvent;
 import me.justahuman.slimefun_server_essentials.implementation.DisplayComponentTypes;
 import me.justahuman.slimefun_server_essentials.implementation.RecipeCategoryExporters;
 import me.justahuman.slimefun_server_essentials.implementation.RecipeDisplays;
 import me.justahuman.slimefun_server_essentials.implementation.RecipeTypeAdapters;
+import me.justahuman.slimefun_server_essentials.implementation.RecipeTransferRegistry;
 import me.justahuman.slimefun_server_essentials.listeners.RegisterDefaultsListener;
 import me.justahuman.slimefun_server_essentials.listeners.RegistryFinalizedListener;
 import me.justahuman.slimefun_server_essentials.util.JsonUtils;
@@ -36,6 +38,7 @@ public final class SlimefunServerEssentials extends JavaPlugin {
     private static @Getter RecipeDisplaysChannel recipeDisplaysChannel;
     private static @Getter ComponentTypesChannel componentTypesChannel;
     private static @Getter CacheStatusChannel cacheStatusChannel;
+    private static @Getter RecipeTransferChannel recipeTransferChannel;
     private volatile boolean dataReady;
     private volatile long lastBuildMillis;
     private volatile long lastBuildDurationMillis;
@@ -57,6 +60,7 @@ public final class SlimefunServerEssentials extends JavaPlugin {
 
         loadingStateChannel = new LoadingStateChannel();
         cacheStatusChannel = new CacheStatusChannel();
+        recipeTransferChannel = new RecipeTransferChannel();
 
         itemsChannel = new ItemsChannel();
         recipeDisplaysChannel = new RecipeDisplaysChannel();
@@ -98,6 +102,7 @@ public final class SlimefunServerEssentials extends JavaPlugin {
             RecipeCategoryExporters.clear();
             RecipeDisplays.clear();
             RecipeTypeAdapters.clear();
+            RecipeTransferRegistry.clear();
             Bukkit.getPluginManager().callEvent(new SlimefunEssentialsRegisterEvent());
             componentTypesChannel.load();
             itemsChannel.load();

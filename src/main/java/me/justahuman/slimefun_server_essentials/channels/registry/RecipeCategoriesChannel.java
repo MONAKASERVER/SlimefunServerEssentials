@@ -10,6 +10,7 @@ import me.justahuman.slimefun_server_essentials.api.RecipeCategoryBuilder;
 import me.justahuman.slimefun_server_essentials.channels.AbstractChannel;
 import me.justahuman.slimefun_server_essentials.implementation.RecipeCategoryExporters;
 import me.justahuman.slimefun_server_essentials.implementation.RecipeTypeAdapters;
+import me.justahuman.slimefun_server_essentials.implementation.RecipeTransferRegistry;
 import me.justahuman.slimefun_server_essentials.util.DataUtils;
 import me.justahuman.slimefun_server_essentials.util.JsonUtils;
 import me.justahuman.slimefun_server_essentials.util.Utils;
@@ -33,7 +34,11 @@ public class RecipeCategoriesChannel extends AbstractChannel {
                     .map(RecipeCategoryExporters::itemsRecipesCategory)
                     .filter(Objects::nonNull).toList());
             itemCategories.addAll(RecipeTypeAdapters.export(registryEntry.getKey()));
-            RecipeCategoryBuilder.optimize(itemCategories);
+            itemCategories.forEach(RecipeCategoryBuilder::sort);
+            RecipeTransferRegistry.register(itemCategories);
+            for (RecipeCategoryBuilder category : itemCategories) {
+                category.tryOptimize(itemCategories);
+            }
 
             ByteArrayDataOutput itemCategoriesPacket = ByteStreams.newDataOutput();
             DataUtils.writeVersion(itemCategoriesPacket);
@@ -53,7 +58,11 @@ public class RecipeCategoriesChannel extends AbstractChannel {
                     builderMap.put(type, builder);
                 }
             }
-            RecipeCategoryBuilder.optimize(builderMap.values());
+            builderMap.values().forEach(RecipeCategoryBuilder::sort);
+            RecipeTransferRegistry.register(new java.util.ArrayList<>(builderMap.values()));
+            for (RecipeCategoryBuilder category : builderMap.values()) {
+                category.tryOptimize(builderMap.values());
+            }
 
             ByteArrayDataOutput typeCategoriesPacket = ByteStreams.newDataOutput();
             DataUtils.writeVersion(typeCategoriesPacket);

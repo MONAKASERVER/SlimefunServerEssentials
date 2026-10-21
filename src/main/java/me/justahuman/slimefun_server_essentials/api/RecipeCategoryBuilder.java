@@ -119,6 +119,10 @@ public class RecipeCategoryBuilder {
         return recipes.isEmpty();
     }
 
+    public List<RecipeBuilder> recipes() {
+        return List.copyOf(recipes);
+    }
+
     public void toBytes(ByteArrayDataOutput output) {
         output.writeUTF(this.id);
         DataUtils.add(output, this.display, null);
