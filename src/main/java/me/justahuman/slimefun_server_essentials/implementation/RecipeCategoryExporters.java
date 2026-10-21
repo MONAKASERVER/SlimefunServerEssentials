@@ -41,14 +41,19 @@ public class RecipeCategoryExporters {
         } else if (slimefunItem.getRecipeType() != RecipeType.NULL) {
             ItemStack[] recipe = slimefunItem.getRecipe();
             if (recipe != null && recipe.length > 0) {
-                builder.recipe(new me.justahuman.slimefun_server_essentials.api.RecipeBuilder()
-                        .inputs(recipe)
-                        .output(slimefunItem.getRecipeOutput()));
                 int side = (int) Math.sqrt(recipe.length);
                 if (side >= 3 && side * side == recipe.length) {
                     builder.displayGrid(side, side);
+                    builder.recipe(new me.justahuman.slimefun_server_essentials.api.RecipeBuilder()
+                            .inputs(recipe)
+                            .output(slimefunItem.getRecipeOutput())
+                            .grid(side, side));
                 } else {
                     builder.displayGrid(3, 3);
+                    builder.recipe(new me.justahuman.slimefun_server_essentials.api.RecipeBuilder()
+                            .inputs(recipe)
+                            .output(slimefunItem.getRecipeOutput())
+                            .grid(3, 3));
                 }
                 builder.item(slimefunItem.getRecipeType().toItem());
             }

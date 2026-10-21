@@ -343,6 +343,9 @@ public class JsonUtils {
                     .sfTicks(recipe1.getSfTicks())
                     .ticks(recipe1.getTicks())
                     .energy(recipe1.getEnergy());
+            if (recipe1.getWidth() != null && recipe1.getHeight() != null) {
+                recipe3.grid(recipe1.getWidth(), recipe1.getHeight());
+            }
 
             for (int inputIndex = 0; inputIndex < recipe1.getInputs().size(); inputIndex++) {
                 final String inputElement1 = recipe1.getInputs().get(inputIndex);
