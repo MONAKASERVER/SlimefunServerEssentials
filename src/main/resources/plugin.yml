@@ -4,6 +4,7 @@ main: me.justahuman.slimefun_server_essentials.SlimefunServerEssentials
 api-version: '26.1'
 prefix: MonaJEI
 depend: [ Slimefun ]
+softdepend: [ Networks ]
 authors: [ JustAHuman, MONAKA_SERVER ]
 description: Exports Slimefun Recipes to Json Files & provides support for many features of the Slimefun Essentials Mod
 website: https://github.com/MONAKASERVER/SlimefunServerEssentials

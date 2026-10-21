@@ -4,6 +4,10 @@ import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteStreams;
 import io.github.thebusybiscuit.slimefun4.api.items.SlimefunItem;
 import io.github.thebusybiscuit.slimefun4.utils.SlimefunUtils;
+import io.github.sefiraat.networks.NetworkStorage;
+import io.github.sefiraat.networks.network.NetworkRoot;
+import io.github.sefiraat.networks.network.NodeDefinition;
+import io.github.sefiraat.networks.network.stackcaches.ItemRequest;
 import me.justahuman.slimefun_server_essentials.SlimefunServerEssentials;
 import me.justahuman.slimefun_server_essentials.api.RecipeBuilder;
 import me.justahuman.slimefun_server_essentials.implementation.RecipeTransferRegistry;
@@ -21,6 +25,7 @@ import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.nio.charset.StandardCharsets;
 
 /** Secure server-authoritative handling for JEI's recipe transfer (+) button. */
@@ -61,17 +66,36 @@ public final class RecipeTransferChannel extends AbstractChannel {
 
     private void transfer(Player player, String categoryId, int recipeIndex, boolean maxTransfer) {
         Inventory top = player.getOpenInventory().getTopInventory();
-        int[] targetSlots = resolveTargetSlots(top);
-        if (targetSlots == null) {
+        TransferTarget target = resolveTarget(top);
+        if (target == null) {
             player.sendMessage("§c自動配置にはドロッパー、ディスペンサー、またはNetworks Crafting Gridを開いてください。");
             return;
         }
+        int[] targetSlots = target.slots();
 
         RecipeBuilder recipe = RecipeTransferRegistry.get(categoryId, recipeIndex);
         if (recipe == null || recipe.getInputs().size() > 9
                 || (recipe.getWidth() != null && recipe.getWidth() > 3)
                 || (recipe.getHeight() != null && recipe.getHeight() > 3)) {
             player.sendMessage("§cこのレシピは3x3へ自動配置できません。");
+            return;
+        }
+
+        List<List<ItemStack>> requirements = new ArrayList<>();
+        for (String encoded : recipe.getInputs()) {
+            requirements.add(encoded == null || encoded.isBlank() ? List.of() : resolveAlternatives(recipe, encoded));
+        }
+        if (requirements.stream().anyMatch(requirement -> requirement == null)) {
+            player.sendMessage("§cこのレシピには自動配置できない材料が含まれています。");
+            return;
+        }
+
+        if (target.networkGrid()) {
+            if (target.networkRoot() == null) {
+                player.sendMessage("§cこのCrafting GridはNetworkへ接続されていません。");
+                return;
+            }
+            transferFromNetwork(player, top, targetSlots, target.networkRoot(), requirements, maxTransfer);
             return;
         }
 
@@ -86,15 +110,6 @@ public final class RecipeTransferChannel extends AbstractChannel {
                 player.sendMessage("§c自動配置には、現在の材料を戻せる空きが必要です。");
                 return;
             }
-        }
-
-        List<List<ItemStack>> requirements = new ArrayList<>();
-        for (String encoded : recipe.getInputs()) {
-            requirements.add(encoded == null || encoded.isBlank() ? List.of() : resolveAlternatives(recipe, encoded));
-        }
-        if (requirements.stream().anyMatch(requirement -> requirement == null)) {
-            player.sendMessage("§cこのレシピには自動配置できない材料が含まれています。");
-            return;
         }
 
         int sets = maxTransfer ? maximumSets(inventory, requirements) : 1;
@@ -130,10 +145,77 @@ public final class RecipeTransferChannel extends AbstractChannel {
         player.sendMessage("§aレシピの材料を自動配置しました" + (sets > 1 ? " §7(§f" + sets + "回分§7)" : "") + "。");
     }
 
-    private int[] resolveTargetSlots(Inventory top) {
+    private void transferFromNetwork(Player player, Inventory top, int[] targetSlots, NetworkRoot root,
+                                     List<List<ItemStack>> requirements, boolean maxTransfer) {
+        for (int targetSlot : targetSlots) {
+            if (!isEmpty(top.getItem(targetSlot))) {
+                player.sendMessage("§c先にCrafting Grid内の材料を戻してから自動配置してください。");
+                return;
+            }
+        }
+
+        ItemStack[] available = networkContents(root);
+        int sets = maxTransfer ? maximumSets(available, requirements) : 1;
+        if (sets < 1) {
+            player.sendMessage("§cNetwork内に必要な材料が足りません。");
+            return;
+        }
+
+        ItemStack[] simulation = cloneContents(available);
+        List<PlannedIngredient> plan = new ArrayList<>();
+        for (int slot = 0; slot < requirements.size(); slot++) {
+            List<ItemStack> alternatives = requirements.get(slot);
+            if (alternatives.isEmpty()) continue;
+            ItemStack selected = findAvailable(simulation, alternatives, sets);
+            if (selected == null) {
+                player.sendMessage("§cNetwork内に必要な材料が足りません。");
+                return;
+            }
+            int required = selected.getAmount() * sets;
+            if (required > selected.getMaxStackSize() || !consume(simulation, selected, required)) {
+                player.sendMessage("§c一度に配置できる材料数を超えています。");
+                return;
+            }
+            plan.add(new PlannedIngredient(slot, selected.clone(), required));
+        }
+
+        List<ItemStack> withdrawn = new ArrayList<>();
+        ItemStack[] newGrid = new ItemStack[targetSlots.length];
+        for (PlannedIngredient ingredient : plan) {
+            ItemStack fetched = root.getItemStack(new ItemRequest(ingredient.template(), ingredient.amount()));
+            if (isEmpty(fetched) || fetched.getAmount() != ingredient.amount()) {
+                if (!isEmpty(fetched)) withdrawn.add(fetched);
+                for (ItemStack stack : withdrawn) root.addItemStack(stack);
+                player.sendMessage("§cNetwork内の材料が変化したため、自動配置を中止しました。");
+                return;
+            }
+            withdrawn.add(fetched);
+            newGrid[ingredient.slot()] = fetched.clone();
+        }
+
+        for (int i = 0; i < targetSlots.length; i++) {
+            top.setItem(targetSlots[i], newGrid[i]);
+        }
+        player.updateInventory();
+        player.sendMessage("§aNetwork内の材料を自動配置しました"
+                + (sets > 1 ? " §7(§f" + sets + "回分§7)" : "") + "。");
+    }
+
+    private ItemStack[] networkContents(NetworkRoot root) {
+        List<ItemStack> contents = new ArrayList<>();
+        for (Map.Entry<ItemStack, Integer> entry : root.getAllNetworkItems().entrySet()) {
+            if (isEmpty(entry.getKey()) || entry.getValue() == null || entry.getValue() <= 0) continue;
+            ItemStack stack = entry.getKey().clone();
+            stack.setAmount(entry.getValue());
+            contents.add(stack);
+        }
+        return contents.toArray(ItemStack[]::new);
+    }
+
+    private TransferTarget resolveTarget(Inventory top) {
         InventoryType type = top.getType();
         if ((type == InventoryType.DISPENSER || type == InventoryType.DROPPER) && top.getSize() == 9) {
-            return STANDARD_GRID_SLOTS;
+            return new TransferTarget(STANDARD_GRID_SLOTS, null, false);
         }
         if (top.getSize() != 54) {
             return null;
@@ -142,7 +224,10 @@ public final class RecipeTransferChannel extends AbstractChannel {
         if (location == null || !NETWORK_CRAFTING_GRID_ID.equals(BlockStorage.checkID(location))) {
             return null;
         }
-        return NETWORK_CRAFTING_GRID_SLOTS;
+        NodeDefinition definition = NetworkStorage.getAllNetworkObjects().get(location);
+        NetworkRoot root = definition == null || definition.getNode() == null
+                ? null : definition.getNode().getRoot();
+        return new TransferTarget(NETWORK_CRAFTING_GRID_SLOTS, root, true);
     }
 
     private int maximumSets(ItemStack[] inventory, List<List<ItemStack>> requirements) {
@@ -307,4 +392,8 @@ public final class RecipeTransferChannel extends AbstractChannel {
         }
         return value;
     }
+
+    private record TransferTarget(int[] slots, NetworkRoot networkRoot, boolean networkGrid) {}
+
+    private record PlannedIngredient(int slot, ItemStack template, int amount) {}
 }
