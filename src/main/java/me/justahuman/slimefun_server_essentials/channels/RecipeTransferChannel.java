@@ -34,7 +34,7 @@ public final class RecipeTransferChannel extends AbstractChannel {
     private static final int MAX_CATEGORY_ID_LENGTH = 128;
     private static final int[] STANDARD_GRID_SLOTS = {0, 1, 2, 3, 4, 5, 6, 7, 8};
     private static final int[] NETWORK_CRAFTING_GRID_SLOTS = {6, 7, 8, 15, 16, 17, 24, 25, 26};
-    private static final String NETWORK_CRAFTING_GRID_ID = "NETWORK_CRAFTING_GRID";
+    static final String NETWORK_CRAFTING_GRID_ID = "NTW_CRAFTING_GRID";
 
     @Override
     public String getChannel() {
