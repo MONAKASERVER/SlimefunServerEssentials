@@ -7,7 +7,9 @@ import io.github.thebusybiscuit.slimefun4.utils.SlimefunUtils;
 import me.justahuman.slimefun_server_essentials.SlimefunServerEssentials;
 import me.justahuman.slimefun_server_essentials.api.RecipeBuilder;
 import me.justahuman.slimefun_server_essentials.implementation.RecipeTransferRegistry;
+import me.mrCookieSlime.Slimefun.api.BlockStorage;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryType;
@@ -24,6 +26,9 @@ import java.nio.charset.StandardCharsets;
 /** Secure server-authoritative handling for JEI's recipe transfer (+) button. */
 public final class RecipeTransferChannel extends AbstractChannel {
     private static final int MAX_CATEGORY_ID_LENGTH = 128;
+    private static final int[] STANDARD_GRID_SLOTS = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+    private static final int[] NETWORK_CRAFTING_GRID_SLOTS = {6, 7, 8, 15, 16, 17, 24, 25, 26};
+    private static final String NETWORK_CRAFTING_GRID_ID = "NETWORK_CRAFTING_GRID";
 
     @Override
     public String getChannel() {
@@ -56,9 +61,9 @@ public final class RecipeTransferChannel extends AbstractChannel {
 
     private void transfer(Player player, String categoryId, int recipeIndex, boolean maxTransfer) {
         Inventory top = player.getOpenInventory().getTopInventory();
-        InventoryType type = top.getType();
-        if ((type != InventoryType.DISPENSER && type != InventoryType.DROPPER) || top.getSize() != 9) {
-            player.sendMessage("§c自動配置にはドロッパーまたはディスペンサーを開いてください。");
+        int[] targetSlots = resolveTargetSlots(top);
+        if (targetSlots == null) {
+            player.sendMessage("§c自動配置にはドロッパー、ディスペンサー、またはNetworks Crafting Gridを開いてください。");
             return;
         }
 
@@ -71,7 +76,11 @@ public final class RecipeTransferChannel extends AbstractChannel {
         }
 
         ItemStack[] inventory = cloneContents(player.getInventory().getStorageContents());
-        ItemStack[] oldGrid = cloneContents(top.getContents());
+        ItemStack[] oldGrid = new ItemStack[targetSlots.length];
+        for (int i = 0; i < targetSlots.length; i++) {
+            ItemStack stack = top.getItem(targetSlots[i]);
+            oldGrid[i] = isEmpty(stack) ? null : stack.clone();
+        }
         for (ItemStack stack : oldGrid) {
             if (!isEmpty(stack) && !insert(inventory, stack.clone())) {
                 player.sendMessage("§c自動配置には、現在の材料を戻せる空きが必要です。");
@@ -114,9 +123,26 @@ public final class RecipeTransferChannel extends AbstractChannel {
         }
 
         player.getInventory().setStorageContents(inventory);
-        top.setContents(newGrid);
+        for (int i = 0; i < targetSlots.length; i++) {
+            top.setItem(targetSlots[i], newGrid[i]);
+        }
         player.updateInventory();
         player.sendMessage("§aレシピの材料を自動配置しました" + (sets > 1 ? " §7(§f" + sets + "回分§7)" : "") + "。");
+    }
+
+    private int[] resolveTargetSlots(Inventory top) {
+        InventoryType type = top.getType();
+        if ((type == InventoryType.DISPENSER || type == InventoryType.DROPPER) && top.getSize() == 9) {
+            return STANDARD_GRID_SLOTS;
+        }
+        if (top.getSize() != 54) {
+            return null;
+        }
+        Location location = top.getLocation();
+        if (location == null || !NETWORK_CRAFTING_GRID_ID.equals(BlockStorage.checkID(location))) {
+            return null;
+        }
+        return NETWORK_CRAFTING_GRID_SLOTS;
     }
 
     private int maximumSets(ItemStack[] inventory, List<List<ItemStack>> requirements) {
